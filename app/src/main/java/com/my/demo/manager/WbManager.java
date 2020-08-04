@@ -113,6 +113,26 @@ public class WbManager {
                     handler.sendEmptyMessage(0x02);
                 }
 
+                // Set HR detect
+                if (WristbandManager.getInstance(context).setContinueHrp(true, 5000)) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+
+                // Read HR detect
+                if (WristbandManager.getInstance(context).sendContinueHrpParamRequest()) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+
+                if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+
                 startMeasurement();
             }
         });
@@ -145,6 +165,12 @@ public class WbManager {
             if (state == WristbandManager.STATE_WRIST_LOGIN) {
                 setup();
             }
+        }
+
+        @Override
+        public void onHrpContinueParamRsp(boolean enable, int interval) {
+            super.onHrpContinueParamRsp(enable, interval);
+            Log.i(TAG, "enable : " + enable + "interval : " + interval);
         }
 
         @Override
@@ -191,9 +217,6 @@ public class WbManager {
              * 3 The device heart rate detection is turned on, you can start temperature measurement
              */
             Log.e(TAG, "temp status :" + status);
-            if (status == 3) {
-                startMeasurement();
-            }
         }
     };
 
@@ -233,20 +256,6 @@ public class WbManager {
                 }
                 // Stop temperature
                 if (WristbandManager.getInstance(context).setTemperatureStatus(false)) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-            }
-        });
-        thread.start();
-    }
-
-    private void checkTempStatus() {
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
                     handler.sendEmptyMessage(0x01);
                 } else {
                     handler.sendEmptyMessage(0x02);
