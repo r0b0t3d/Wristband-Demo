@@ -12,6 +12,7 @@ import com.wosmart.ukprotocollibary.WristbandScanCallback;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpItemPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerTemperatureControlPacket;
+import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerUserPacket;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -81,8 +82,41 @@ public class WbManager {
     }
 
     private void connectDevice(String mac, String name) {
-        Log.d(TAG, "Connecting to " + name + ", mac: " + mac);
+        Log.e(TAG, "Connecting to " + name + ", mac: " + mac);
         WristbandManager.getInstance(context).connect(mac);
+    }
+
+    private void login() {
+        WristbandManager.getInstance(context).startLoginProcess("1234567890");
+    }
+
+    private void setup() {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (WristbandManager.getInstance(context).setTimeSync()) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+
+                if (WristbandManager.getInstance(context).setClocksSyncRequest()) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+
+                ApplicationLayerUserPacket info = new ApplicationLayerUserPacket(true, 18, 180, 50);
+                if (WristbandManager.getInstance(context).setUserProfile(info)) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+
+                startMeasurement();
+            }
+        });
+        thread.start();
     }
 
     private WristbandManagerCallback wristbandManagerCallback = new WristbandManagerCallback() {
@@ -91,10 +125,10 @@ public class WbManager {
             super.onConnectionStateChange(status);
             isConnected.set(status);
             if (status) {
-                Log.d(TAG, "Connected");
-                startMeasurement();
+                Log.e(TAG, "Connected");
+                login();
             } else {
-                Log.d(TAG, "Failed to connected");
+                Log.e(TAG, "Failed to connected");
             }
         }
 
@@ -105,10 +139,19 @@ public class WbManager {
         }
 
         @Override
+        public void onLoginStateChange(int state) {
+            super.onLoginStateChange(state);
+            Log.e(TAG, "onLoginStateChange " + state);
+            if (state == WristbandManager.STATE_WRIST_LOGIN) {
+                setup();
+            }
+        }
+
+        @Override
         public void onHrpDataReceiveIndication(ApplicationLayerHrpPacket packet) {
             super.onHrpDataReceiveIndication(packet);
             for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
-                Log.i(TAG, "hr value :" + item.getValue());
+                Log.e(TAG, "hr value :" + item.getValue());
                 if (callback != null) {
                     callback.onHearRateUpdate(item.getValue());
                 }
@@ -118,14 +161,14 @@ public class WbManager {
         @Override
         public void onDeviceCancelSingleHrpRead() {
             super.onDeviceCancelSingleHrpRead();
-            Log.i(TAG, "stop measure hr ");
+            Log.e(TAG, "stop measure hr ");
         }
 
         @Override
         public void onTemperatureData(ApplicationLayerHrpPacket packet) {
             super.onTemperatureData(packet);
             for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
-                Log.i(TAG, "temp origin value :" + item.getTempOriginValue() + " temperature adjust value : " + item.getTemperature() + " is wear :" + item.isWearStatus() + " is adjust : " + item.isAdjustStatus() + "is animation :" + item.isAnimationStatus());
+                Log.e(TAG, "temp origin value :" + item.getTempOriginValue() + " temperature adjust value : " + item.getTemperature() + " is wear :" + item.isWearStatus() + " is adjust : " + item.isAdjustStatus() + "is animation :" + item.isAnimationStatus());
                 if (callback != null) {
                     callback.onTemperatureValue(item.getTempOriginValue());
                 }
@@ -135,16 +178,24 @@ public class WbManager {
         @Override
         public void onTemperatureMeasureSetting(ApplicationLayerTemperatureControlPacket packet) {
             super.onTemperatureMeasureSetting(packet);
-            Log.i(TAG, "temp setting : show = " + packet.isShow() + " adjust = " + packet.isAdjust() + " celsius unit = " + packet.isCelsiusUnit());
+            Log.e(TAG, "temp setting : show = " + packet.isShow() + " adjust = " + packet.isAdjust() + " celsius unit = " + packet.isCelsiusUnit());
         }
 
         @Override
         public void onTemperatureMeasureStatus(int status) {
             super.onTemperatureMeasureStatus(status);
-            Log.i(TAG, "temp status :" + status);
+            /**
+             * 0 Temperature detection is off
+             * 1 Start of temperature detection
+             * 2 Heart rate detection is not enabled on the device (temperature depends on heart rate)
+             * 3 The device heart rate detection is turned on, you can start temperature measurement
+             */
+            Log.e(TAG, "temp status :" + status);
+            if (status == 3) {
+                startMeasurement();
+            }
         }
     };
-
 
     private void startMeasurement() {
         if (!isConnected.get()) return;
@@ -191,6 +242,20 @@ public class WbManager {
         thread.start();
     }
 
+    private void checkTempStatus() {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+            }
+        });
+        thread.start();
+    }
+
     private class WbHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
@@ -208,6 +273,7 @@ public class WbManager {
 
     public interface WbCallback {
         void onHearRateUpdate(int hrValue);
+
         void onTemperatureValue(float tempValue);
     }
 }
