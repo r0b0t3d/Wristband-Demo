@@ -35,4 +35,10 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
         WbManager.getInstance(this).unRegisterCallback();
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        WbManager.getInstance(this).disconnect();
+    }
 }

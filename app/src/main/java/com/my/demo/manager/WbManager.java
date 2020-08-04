@@ -53,6 +53,10 @@ public class WbManager {
         stopMeasurement();
     }
 
+    public void disconnect() {
+        WristbandManager.getInstance(context).close();
+    }
+
     /**
      * Start scan and connect to the first device found
      */
