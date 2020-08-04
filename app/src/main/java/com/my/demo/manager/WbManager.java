@@ -39,8 +39,8 @@ public class WbManager {
 
     public void registerCallback(WbCallback cb) {
         this.callback = cb;
-        WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
         if (isConnected.get()) {
+            WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
             startMeasurement();
         } else {
             startScan();
@@ -83,6 +83,7 @@ public class WbManager {
 
     private void connectDevice(String mac, String name) {
         Log.e(TAG, "Connecting to " + name + ", mac: " + mac);
+        WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
         WristbandManager.getInstance(context).connect(mac);
     }
 
@@ -114,7 +115,7 @@ public class WbManager {
                 }
 
                 // Set HR detect
-                if (WristbandManager.getInstance(context).setContinueHrp(true, 5000)) {
+                if (WristbandManager.getInstance(context).setContinueHrp(true, 1)) {
                     handler.sendEmptyMessage(0x01);
                 } else {
                     handler.sendEmptyMessage(0x02);
@@ -170,7 +171,7 @@ public class WbManager {
         @Override
         public void onHrpContinueParamRsp(boolean enable, int interval) {
             super.onHrpContinueParamRsp(enable, interval);
-            Log.i(TAG, "enable : " + enable + "interval : " + interval);
+            Log.e(TAG, "enable : " + enable + "interval : " + interval);
         }
 
         @Override
