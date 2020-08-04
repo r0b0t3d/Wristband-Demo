@@ -28,7 +28,7 @@ public class WbManager {
 
     private WbManager(Context context) {
         this.context = context.getApplicationContext();
-        this.handler = new HeartRateHandler();
+        this.handler = new WbHandler();
     }
 
     private WristbandManagerCallback wristbandManagerCallback = new WristbandManagerCallback() {
@@ -37,7 +37,9 @@ public class WbManager {
             super.onHrpDataReceiveIndication(packet);
             for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
                 Log.i(TAG, "hr value :" + item.getValue());
-                callback.onHearRateUpdate(item.getValue());
+                if (callback != null) {
+                    callback.onHearRateUpdate(item.getValue());
+                }
             }
         }
 
@@ -52,7 +54,9 @@ public class WbManager {
             super.onTemperatureData(packet);
             for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
                 Log.i(TAG, "temp origin value :" + item.getTempOriginValue() + " temperature adjust value : " + item.getTemperature() + " is wear :" + item.isWearStatus() + " is adjust : " + item.isAdjustStatus() + "is animation :" + item.isAnimationStatus());
-                callback.onTemperatureValue(item.getTempOriginValue());
+                if (callback != null) {
+                    callback.onTemperatureValue(item.getTempOriginValue());
+                }
             }
         }
 
@@ -124,7 +128,7 @@ public class WbManager {
         thread.start();
     }
 
-    private class HeartRateHandler extends Handler {
+    private class WbHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
