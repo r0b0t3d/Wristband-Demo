@@ -1,5 +1,6 @@
 package com.my.demo.manager;
 
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Message;
@@ -7,15 +8,19 @@ import android.util.Log;
 
 import com.wosmart.ukprotocollibary.WristbandManager;
 import com.wosmart.ukprotocollibary.WristbandManagerCallback;
+import com.wosmart.ukprotocollibary.WristbandScanCallback;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpItemPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerTemperatureControlPacket;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WbManager {
     public static final String TAG = "WbManager";
     private Context context;
     private Handler handler;
     private WbCallback callback;
+    private AtomicBoolean isConnected = new AtomicBoolean(false);
 
     private static WbManager instance;
 
@@ -31,7 +36,70 @@ public class WbManager {
         this.handler = new WbHandler();
     }
 
+    public void registerCallback(WbCallback cb) {
+        this.callback = cb;
+        WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
+        if (isConnected.get()) {
+            startMeasurement();
+        } else {
+            startScan();
+        }
+
+    }
+
+    public void unRegisterCallback() {
+        this.callback = null;
+        WristbandManager.getInstance(context).unRegisterCallback(wristbandManagerCallback);
+        stopMeasurement();
+    }
+
+    /**
+     * Start scan and connect to the first device found
+     */
+    private void startScan() {
+        WristbandManager.getInstance(context).startScan(new WristbandScanCallback() {
+            @Override
+            public void onWristbandDeviceFind(BluetoothDevice device, int rssi, byte[] scanRecord) {
+                super.onWristbandDeviceFind(device, rssi, scanRecord);
+                connectDevice(device.getAddress(), device.getName());
+            }
+
+            @Override
+            public void onLeScanEnable(boolean enable) {
+                super.onLeScanEnable(enable);
+            }
+
+            @Override
+            public void onWristbandLoginStateChange(boolean connected) {
+                super.onWristbandLoginStateChange(connected);
+            }
+        });
+    }
+
+    private void connectDevice(String mac, String name) {
+        Log.d(TAG, "Connecting to " + name + ", mac: " + mac);
+        WristbandManager.getInstance(context).connect(mac);
+    }
+
     private WristbandManagerCallback wristbandManagerCallback = new WristbandManagerCallback() {
+        @Override
+        public void onConnectionStateChange(boolean status) {
+            super.onConnectionStateChange(status);
+            isConnected.set(status);
+            if (status) {
+                Log.d(TAG, "Connected");
+                startMeasurement();
+            } else {
+                Log.d(TAG, "Failed to connected");
+            }
+        }
+
+        @Override
+        public void onError(int error) {
+            super.onError(error);
+            Log.e(TAG, "Error: " + error);
+        }
+
         @Override
         public void onHrpDataReceiveIndication(ApplicationLayerHrpPacket packet) {
             super.onHrpDataReceiveIndication(packet);
@@ -73,19 +141,9 @@ public class WbManager {
         }
     };
 
-    public void registerCallback(WbCallback cb) {
-        this.callback = cb;
-        WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
-        startMeasurement();
-    }
-
-    public void unRegisterCallback() {
-        this.callback = null;
-        WristbandManager.getInstance(context).unRegisterCallback(wristbandManagerCallback);
-        stopMeasurement();
-    }
 
     private void startMeasurement() {
+        if (!isConnected.get()) return;
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -108,6 +166,7 @@ public class WbManager {
     }
 
     private void stopMeasurement() {
+        if (!isConnected.get()) return;
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
