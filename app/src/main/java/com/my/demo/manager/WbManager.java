@@ -146,7 +146,7 @@ public class WbManager {
             super.onConnectionStateChange(status);
             isConnected.set(status);
             if (status) {
-                Log.e(TAG, "Connected");
+                Log.e(TAG, "Connected " + isConnected.get());
                 login();
             } else {
                 Log.e(TAG, "Failed to connected");
@@ -222,6 +222,7 @@ public class WbManager {
     };
 
     private void startMeasurement() {
+        Log.e(TAG, "Start measurement " + isConnected.get());
         if (!isConnected.get()) return;
         Thread thread = new Thread(new Runnable() {
             @Override
