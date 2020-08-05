@@ -9,6 +9,8 @@ import android.util.Log;
 import com.wosmart.ukprotocollibary.WristbandManager;
 import com.wosmart.ukprotocollibary.WristbandManagerCallback;
 import com.wosmart.ukprotocollibary.WristbandScanCallback;
+import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerDeviceInfoPacket;
+import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerFunctionPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpItemPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerTemperatureControlPacket;
@@ -62,6 +64,7 @@ public class WbManager {
      * Start scan and connect to the first device found
      */
     private void startScan() {
+        Log.e(TAG, "start scanning");
         WristbandManager.getInstance(context).startScan(new WristbandScanCallback() {
             @Override
             public void onWristbandDeviceFind(BluetoothDevice device, int rssi, byte[] scanRecord) {
@@ -88,6 +91,7 @@ public class WbManager {
     }
 
     private void login() {
+        Log.e(TAG, "Login");
         WristbandManager.getInstance(context).startLoginProcess("1234567890");
     }
 
@@ -95,39 +99,49 @@ public class WbManager {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
+                Log.e(TAG, "Read device information");
+                if (WristbandManager.getInstance(context).requestDeviceInfo()) {
+                    handler.sendEmptyMessage(0x01);
+                } else {
+                    handler.sendEmptyMessage(0x02);
+                }
+
+                Log.e(TAG, "Sync time");
                 if (WristbandManager.getInstance(context).setTimeSync()) {
                     handler.sendEmptyMessage(0x01);
                 } else {
                     handler.sendEmptyMessage(0x02);
                 }
 
-                if (WristbandManager.getInstance(context).setClocksSyncRequest()) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
+//                Log.e(TAG, "Sync time");
+//                if (WristbandManager.getInstance(context).setClocksSyncRequest()) {
+//                    handler.sendEmptyMessage(0x01);
+//                } else {
+//                    handler.sendEmptyMessage(0x02);
+//                }
+//
+//                ApplicationLayerUserPacket info = new ApplicationLayerUserPacket(true, 18, 180, 50);
+//                if (WristbandManager.getInstance(context).setUserProfile(info)) {
+//                    handler.sendEmptyMessage(0x01);
+//                } else {
+//                    handler.sendEmptyMessage(0x02);
+//                }
 
-                ApplicationLayerUserPacket info = new ApplicationLayerUserPacket(true, 18, 180, 50);
-                if (WristbandManager.getInstance(context).setUserProfile(info)) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-
-                // Set HR detect
+                Log.e(TAG, "Set HR detect");
                 if (WristbandManager.getInstance(context).setContinueHrp(true, 1)) {
                     handler.sendEmptyMessage(0x01);
                 } else {
                     handler.sendEmptyMessage(0x02);
                 }
 
-                // Read HR detect
+                Log.e(TAG, "Read HR detect");
                 if (WristbandManager.getInstance(context).sendContinueHrpParamRequest()) {
                     handler.sendEmptyMessage(0x01);
                 } else {
                     handler.sendEmptyMessage(0x02);
                 }
 
+                Log.e(TAG, "Check temperature status");
                 if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
                     handler.sendEmptyMessage(0x01);
                 } else {
@@ -166,6 +180,18 @@ public class WbManager {
             if (state == WristbandManager.STATE_WRIST_LOGIN) {
                 setup();
             }
+        }
+
+        @Override
+        public void onDeviceInfo(ApplicationLayerDeviceInfoPacket packet) {
+            super.onDeviceInfo(packet);
+            Log.e(TAG, "device info = " + packet.toString());
+        }
+
+        @Override
+        public void onDeviceFunction(ApplicationLayerFunctionPacket packet) {
+            super.onDeviceFunction(packet);
+            Log.e(TAG, "function info = " + packet.toString());
         }
 
         @Override
