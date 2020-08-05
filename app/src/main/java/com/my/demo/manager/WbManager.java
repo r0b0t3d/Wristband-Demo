@@ -39,14 +39,14 @@ public class WbManager {
         this.handler = new WbHandler();
     }
 
-    public void registerCallback(WbCallback cb) {
+    public void start(WbCallback cb) {
         this.callback = cb;
-        if (isConnected.get()) {
-            WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
-            startMeasurement();
-        } else {
+//        if (isConnected.get()) {
+//            WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
+//            startMeasurement();
+//        } else {
             startScan();
-        }
+//        }
 
     }
 
@@ -100,7 +100,7 @@ public class WbManager {
             @Override
             public void run() {
                 try {
-                    Thread.sleep(100L);
+                    Thread.sleep(3000);
                     Log.e(TAG, "Read device information");
                     if (WristbandManager.getInstance(context).requestDeviceInfo()) {
                         Log.e(TAG, "Read device information SUCCESS");
@@ -109,7 +109,7 @@ public class WbManager {
                         Log.e(TAG, "Read device information FAILED");
                         handler.sendEmptyMessage(0x02);
                     }
-                    Thread.sleep(100L);
+                    Thread.sleep(3000);
                     Log.e(TAG, "Sync time");
                     if (WristbandManager.getInstance(context).setTimeSync()) {
                         Log.e(TAG, "Sync time SUCCESS");
@@ -152,7 +152,7 @@ public class WbManager {
 //                        handler.sendEmptyMessage(0x02);
 //                    }
 
-                    Thread.sleep(100L);
+                    Thread.sleep(3000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -283,6 +283,7 @@ public class WbManager {
     }
 
     private void stopMeasurement() {
+        Log.e(TAG, "Stop measurement ");
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
