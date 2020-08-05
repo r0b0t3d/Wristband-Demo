@@ -254,6 +254,21 @@ public class WbManager {
 
     private void startMeasurement() {
         Log.e(TAG, "Start measurement " + isConnected.get());
+        WristbandManager.getInstance(context).registerCallback(new WristbandManagerCallback() {
+            @Override
+            public void onHrpDataReceiveIndication(ApplicationLayerHrpPacket packet) {
+                super.onHrpDataReceiveIndication(packet);
+                for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
+                    Log.i(TAG, "2 hr value :" + item.getValue());
+                }
+            }
+
+            @Override
+            public void onDeviceCancelSingleHrpRead() {
+                super.onDeviceCancelSingleHrpRead();
+                Log.i(TAG, "2 stop measure hr ");
+            }
+        });
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -267,13 +282,13 @@ public class WbManager {
                 }
 
                 // Start temperature
-                if (WristbandManager.getInstance(context).setTemperatureStatus(true)) {
-                    Log.e(TAG, "Start temp succeed ");
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    Log.e(TAG, "Start temp failed");
-                    handler.sendEmptyMessage(0x02);
-                }
+//                if (WristbandManager.getInstance(context).setTemperatureStatus(true)) {
+//                    Log.e(TAG, "Start temp succeed ");
+//                    handler.sendEmptyMessage(0x01);
+//                } else {
+//                    Log.e(TAG, "Start temp failed");
+//                    handler.sendEmptyMessage(0x02);
+//                }
             }
         });
         thread.start();
