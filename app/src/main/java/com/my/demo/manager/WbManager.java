@@ -99,20 +99,24 @@ public class WbManager {
         final Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                Log.e(TAG, "Read device information");
-                if (WristbandManager.getInstance(context).requestDeviceInfo()) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-
-                Log.e(TAG, "Sync time");
-                if (WristbandManager.getInstance(context).setTimeSync()) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-
+                try {
+                    Thread.sleep(100L);
+                    Log.e(TAG, "Read device information");
+                    if (WristbandManager.getInstance(context).requestDeviceInfo()) {
+                        Log.e(TAG, "Read device information SUCCESS");
+                        handler.sendEmptyMessage(0x01);
+                    } else {
+                        Log.e(TAG, "Read device information FAILED");
+                        handler.sendEmptyMessage(0x02);
+                    }
+                    Thread.sleep(100L);
+                    Log.e(TAG, "Sync time");
+                    if (WristbandManager.getInstance(context).setTimeSync()) {
+                        Log.e(TAG, "Sync time SUCCESS");
+                        handler.sendEmptyMessage(0x01);
+                    } else {
+                        handler.sendEmptyMessage(0x02);
+                    }
 //                Log.e(TAG, "Sync time");
 //                if (WristbandManager.getInstance(context).setClocksSyncRequest()) {
 //                    handler.sendEmptyMessage(0x01);
@@ -126,30 +130,29 @@ public class WbManager {
 //                } else {
 //                    handler.sendEmptyMessage(0x02);
 //                }
+//                    Thread.sleep(100L);
+//                    Log.e(TAG, "Set HR detect");
+//                    if (WristbandManager.getInstance(context).setContinueHrp(true, 1)) {
+//                        handler.sendEmptyMessage(0x01);
+//                    } else {
+//                        handler.sendEmptyMessage(0x02);
+//                    }
+//                    Thread.sleep(100L);
+//                    Log.e(TAG, "Read HR detect");
+//                    if (WristbandManager.getInstance(context).sendContinueHrpParamRequest()) {
+//                        handler.sendEmptyMessage(0x01);
+//                    } else {
+//                        handler.sendEmptyMessage(0x02);
+//                    }
+//                    Thread.sleep(100L);
+//                    Log.e(TAG, "Check temperature status");
+//                    if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
+//                        handler.sendEmptyMessage(0x01);
+//                    } else {
+//                        handler.sendEmptyMessage(0x02);
+//                    }
 
-                Log.e(TAG, "Set HR detect");
-                if (WristbandManager.getInstance(context).setContinueHrp(true, 1)) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-
-                Log.e(TAG, "Read HR detect");
-                if (WristbandManager.getInstance(context).sendContinueHrpParamRequest()) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-
-                Log.e(TAG, "Check temperature status");
-                if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-
-                try {
-                    Thread.sleep(2000);
+                    Thread.sleep(100L);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -254,21 +257,6 @@ public class WbManager {
 
     private void startMeasurement() {
         Log.e(TAG, "Start measurement " + isConnected.get());
-        WristbandManager.getInstance(context).registerCallback(new WristbandManagerCallback() {
-            @Override
-            public void onHrpDataReceiveIndication(ApplicationLayerHrpPacket packet) {
-                super.onHrpDataReceiveIndication(packet);
-                for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
-                    Log.i(TAG, "2 hr value :" + item.getValue());
-                }
-            }
-
-            @Override
-            public void onDeviceCancelSingleHrpRead() {
-                super.onDeviceCancelSingleHrpRead();
-                Log.i(TAG, "2 stop measure hr ");
-            }
-        });
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
