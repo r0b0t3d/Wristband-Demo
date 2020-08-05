@@ -227,20 +227,20 @@ public class WbManager {
             public void onTemperatureData(ApplicationLayerHrpPacket packet) {
                 super.onTemperatureData(packet);
                 for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
-                    Log.i(TAG, "temp origin value :" + item.getTempOriginValue() + " temperature adjust value : " + item.getTemperature() + " is wear :" + item.isWearStatus() + " is adjust : " + item.isAdjustStatus() + "is animation :" + item.isAnimationStatus());
+                    Log.e(TAG, "temp origin value :" + item.getTempOriginValue() + " temperature adjust value : " + item.getTemperature() + " is wear :" + item.isWearStatus() + " is adjust : " + item.isAdjustStatus() + "is animation :" + item.isAnimationStatus());
                 }
             }
 
             @Override
             public void onTemperatureMeasureSetting(ApplicationLayerTemperatureControlPacket packet) {
                 super.onTemperatureMeasureSetting(packet);
-                Log.i(TAG, "temp setting : show = " + packet.isShow() + " adjust = " + packet.isAdjust() + " celsius unit = " + packet.isCelsiusUnit());
+                Log.e(TAG, "temp setting : show = " + packet.isShow() + " adjust = " + packet.isAdjust() + " celsius unit = " + packet.isCelsiusUnit());
             }
 
             @Override
             public void onTemperatureMeasureStatus(int status) {
                 super.onTemperatureMeasureStatus(status);
-                Log.i(TAG, "temp status :" + status);
+                Log.e(TAG, "temp status :" + status);
             }
         });
         Thread thread = new Thread(new Runnable() {
