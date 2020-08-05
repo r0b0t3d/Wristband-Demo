@@ -126,6 +126,7 @@ public class WbManager {
             public void onDeviceFunction(ApplicationLayerFunctionPacket packet) {
                 super.onDeviceFunction(packet);
                 Log.e(TAG, "function info = " + packet.toString());
+                syncTime();
             }
         });
 
@@ -153,7 +154,6 @@ public class WbManager {
             public void run() {
                 if (WristbandManager.getInstance(context).sendFunctionReq()) {
                     Log.e(TAG, "readFunction SUCCESS");
-                    syncTime();
                 } else {
                     Log.e(TAG, "readFunction FAIL");
                 }
