@@ -12,17 +12,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        WbManager.getInstance(this).start(new WbManager.WbCallback() {
-            @Override
-            public void onHearRateUpdate(int hrValue) {
-                // Update value to UI
-            }
-
-            @Override
-            public void onTemperatureValue(float tempValue) {
-                // Update value to UI
-            }
-        });
+        WbManager.getInstance(this).start();
     }
 
     @Override

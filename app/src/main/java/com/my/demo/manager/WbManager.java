@@ -1,9 +1,8 @@
 package com.my.demo.manager;
 
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.le.ScanRecord;
 import android.content.Context;
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 
 import com.wosmart.ukprotocollibary.WristbandManager;
@@ -14,16 +13,10 @@ import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerFunctionPac
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpItemPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerHrpPacket;
 import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerTemperatureControlPacket;
-import com.wosmart.ukprotocollibary.applicationlayer.ApplicationLayerUserPacket;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WbManager {
     public static final String TAG = "WbManager";
     private Context context;
-    private Handler handler;
-    private WbCallback callback;
-    private AtomicBoolean isConnected = new AtomicBoolean(false);
 
     private static WbManager instance;
 
@@ -36,46 +29,33 @@ public class WbManager {
 
     private WbManager(Context context) {
         this.context = context.getApplicationContext();
-        this.handler = new WbHandler();
     }
 
-    public void start(WbCallback cb) {
-        this.callback = cb;
-//        if (isConnected.get()) {
-//            WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
-//            startMeasurement();
-//        } else {
-            startScan();
-//        }
-
+    public void start() {
+        startScan();
     }
 
-    public void unRegisterCallback() {
-        this.callback = null;
-        WristbandManager.getInstance(context).unRegisterCallback(wristbandManagerCallback);
-        stopMeasurement();
-    }
-
-    public void disconnect() {
-        WristbandManager.getInstance(context).close();
-    }
-
-    /**
-     * Start scan and connect to the first device found
-     */
+    // Scan process
     private void startScan() {
-        Log.e(TAG, "start scanning");
+        Log.e(TAG, "start scan");
         WristbandManager.getInstance(context).startScan(new WristbandScanCallback() {
             @Override
             public void onWristbandDeviceFind(BluetoothDevice device, int rssi, byte[] scanRecord) {
                 super.onWristbandDeviceFind(device, rssi, scanRecord);
-                WristbandManager.getInstance(context).stopScan();
-                connectDevice(device.getAddress(), device.getName());
+                Log.e(TAG, "Device found " + device.getAddress());
+                stopScan();
+                connect(device.getAddress(), device.getName());
+            }
+
+            @Override
+            public void onWristbandDeviceFind(BluetoothDevice device, int rssi, ScanRecord scanRecord) {
+                super.onWristbandDeviceFind(device, rssi, scanRecord);
             }
 
             @Override
             public void onLeScanEnable(boolean enable) {
                 super.onLeScanEnable(enable);
+                if (!enable) {}
             }
 
             @Override
@@ -85,247 +65,208 @@ public class WbManager {
         });
     }
 
-    private void connectDevice(String mac, String name) {
-        Log.e(TAG, "Connecting to " + name + ", mac: " + mac);
-        WristbandManager.getInstance(context).registerCallback(wristbandManagerCallback);
-        WristbandManager.getInstance(context).connect(mac);
+    private void stopScan() {
+        WristbandManager.getInstance(context).stopScan();
     }
 
-    private void login() {
-        Log.e(TAG, "Login");
+    private void connect(final String mac, final String name) {
+
+        WristbandManager.getInstance(context).registerCallback(new WristbandManagerCallback() {
+            @Override
+            public void onConnectionStateChange(boolean status) {
+                super.onConnectionStateChange(status);
+                if (status) {
+                    login();
+                } else {
+                    disconnect();
+                }
+            }
+
+            @Override
+            public void onError(int error) {
+                super.onError(error);
+            }
+        });
+
+        WristbandManager.getInstance(context).connect(mac);
+
+    }
+
+    private void disconnect() {
+        WristbandManager.getInstance(context).close();
+    }
+
+    public void login() {
+        WristbandManager.getInstance(context).registerCallback(new WristbandManagerCallback() {
+            @Override
+            public void onLoginStateChange(int state) {
+                super.onLoginStateChange(state);
+                if (state == WristbandManager.STATE_WRIST_LOGIN) {
+                    Log.e(TAG, "Login success");
+
+                    readDeviceInformation();
+                }
+            }
+        });
         WristbandManager.getInstance(context).startLoginProcess("1234567890");
     }
 
-    private void setup() {
-        final Thread thread = new Thread(new Runnable() {
+
+
+    public void readDeviceInformation() {
+        WristbandManager.getInstance(context).registerCallback(new WristbandManagerCallback() {
+
+            @Override
+            public void onDeviceInfo(ApplicationLayerDeviceInfoPacket packet) {
+                super.onDeviceInfo(packet);
+                Log.e(TAG, "device info = " + packet.toString());
+            }
+
+            @Override
+            public void onDeviceFunction(ApplicationLayerFunctionPacket packet) {
+                super.onDeviceFunction(packet);
+                Log.e(TAG, "function info = " + packet.toString());
+            }
+        });
+
+        readVersion();
+    }
+
+    private void readVersion() {
+        Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    Thread.sleep(3000);
-                    Log.e(TAG, "Read device information");
-                    if (WristbandManager.getInstance(context).requestDeviceInfo()) {
-                        Log.e(TAG, "Read device information SUCCESS");
-                        handler.sendEmptyMessage(0x01);
-                    } else {
-                        Log.e(TAG, "Read device information FAILED");
-                        handler.sendEmptyMessage(0x02);
-                    }
-                    Thread.sleep(3000);
-                    Log.e(TAG, "Sync time");
-                    if (WristbandManager.getInstance(context).setTimeSync()) {
-                        Log.e(TAG, "Sync time SUCCESS");
-                        handler.sendEmptyMessage(0x01);
-                    } else {
-                        handler.sendEmptyMessage(0x02);
-                    }
-//                Log.e(TAG, "Sync time");
-//                if (WristbandManager.getInstance(context).setClocksSyncRequest()) {
-//                    handler.sendEmptyMessage(0x01);
-//                } else {
-//                    handler.sendEmptyMessage(0x02);
-//                }
-//
-//                ApplicationLayerUserPacket info = new ApplicationLayerUserPacket(true, 18, 180, 50);
-//                if (WristbandManager.getInstance(context).setUserProfile(info)) {
-//                    handler.sendEmptyMessage(0x01);
-//                } else {
-//                    handler.sendEmptyMessage(0x02);
-//                }
-
-
-//                    Log.e(TAG, "Set HR detect");
-//                    if (WristbandManager.getInstance(context).setContinueHrp(true, 1)) {
-//                        Log.e(TAG, "Set HR detect SUCCESS");
-//                        handler.sendEmptyMessage(0x01);
-//                    } else {
-//                        handler.sendEmptyMessage(0x02);
-//                    }
-                    Thread.sleep(3000);
-                    Log.e(TAG, "Read HR detect");
-                    if (WristbandManager.getInstance(context).sendContinueHrpParamRequest()) {
-                        Log.e(TAG, "Read HR detect SUCCESS");
-                        handler.sendEmptyMessage(0x01);
-                    } else {
-                        handler.sendEmptyMessage(0x02);
-                    }
-//                    Thread.sleep(100L);
-//                    Log.e(TAG, "Check temperature status");
-//                    if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
-//                        handler.sendEmptyMessage(0x01);
-//                    } else {
-//                        handler.sendEmptyMessage(0x02);
-//                    }
-
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                if (WristbandManager.getInstance(context).requestDeviceInfo()) {
+                    Log.e(TAG, "readVersion SUCCESS");
+                    readFunction();
+                } else {
+                    Log.e(TAG, "readVersion FAIL");
                 }
-                startMeasurement();
             }
         });
         thread.start();
     }
 
-    private WristbandManagerCallback wristbandManagerCallback = new WristbandManagerCallback() {
-        @Override
-        public void onConnectionStateChange(boolean status) {
-            super.onConnectionStateChange(status);
-            isConnected.set(status);
-            if (status) {
-                Log.e(TAG, "Connected " + isConnected.get());
-                login();
-            } else {
-                Log.e(TAG, "Failed to connected");
-            }
-        }
-
-        @Override
-        public void onError(int error) {
-            super.onError(error);
-            Log.e(TAG, "Error: " + error);
-        }
-
-        @Override
-        public void onLoginStateChange(int state) {
-            super.onLoginStateChange(state);
-            Log.e(TAG, "onLoginStateChange " + state);
-            if (state == WristbandManager.STATE_WRIST_LOGIN) {
-                setup();
-            }
-        }
-
-        @Override
-        public void onDeviceInfo(ApplicationLayerDeviceInfoPacket packet) {
-            super.onDeviceInfo(packet);
-            Log.e(TAG, "device info = " + packet.toString());
-        }
-
-        @Override
-        public void onDeviceFunction(ApplicationLayerFunctionPacket packet) {
-            super.onDeviceFunction(packet);
-            Log.e(TAG, "function info = " + packet.toString());
-        }
-
-        @Override
-        public void onHrpContinueParamRsp(boolean enable, int interval) {
-            super.onHrpContinueParamRsp(enable, interval);
-            Log.e(TAG, "enable : " + enable + "interval : " + interval);
-        }
-
-        @Override
-        public void onHrpDataReceiveIndication(ApplicationLayerHrpPacket packet) {
-            super.onHrpDataReceiveIndication(packet);
-            for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
-                Log.e(TAG, "hr value :" + item.getValue());
-                if (callback != null) {
-                    callback.onHearRateUpdate(item.getValue());
-                }
-            }
-        }
-
-        @Override
-        public void onDeviceCancelSingleHrpRead() {
-            super.onDeviceCancelSingleHrpRead();
-            Log.e(TAG, "stop measure hr ");
-        }
-
-        @Override
-        public void onTemperatureData(ApplicationLayerHrpPacket packet) {
-            super.onTemperatureData(packet);
-            for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
-                Log.e(TAG, "temp origin value :" + item.getTempOriginValue() + " temperature adjust value : " + item.getTemperature() + " is wear :" + item.isWearStatus() + " is adjust : " + item.isAdjustStatus() + "is animation :" + item.isAnimationStatus());
-                if (callback != null) {
-                    callback.onTemperatureValue(item.getTempOriginValue());
-                }
-            }
-        }
-
-        @Override
-        public void onTemperatureMeasureSetting(ApplicationLayerTemperatureControlPacket packet) {
-            super.onTemperatureMeasureSetting(packet);
-            Log.e(TAG, "temp setting : show = " + packet.isShow() + " adjust = " + packet.isAdjust() + " celsius unit = " + packet.isCelsiusUnit());
-        }
-
-        @Override
-        public void onTemperatureMeasureStatus(int status) {
-            super.onTemperatureMeasureStatus(status);
-            /**
-             * 0 Temperature detection is off
-             * 1 Start of temperature detection
-             * 2 Heart rate detection is not enabled on the device (temperature depends on heart rate)
-             * 3 The device heart rate detection is turned on, you can start temperature measurement
-             */
-            Log.e(TAG, "temp status :" + status);
-        }
-    };
-
-    private void startMeasurement() {
-        Log.e(TAG, "Start measurement " + isConnected.get());
+    private void readFunction() {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                // Start heart rate
+                if (WristbandManager.getInstance(context).sendFunctionReq()) {
+                    Log.e(TAG, "readFunction SUCCESS");
+                    syncTime();
+                } else {
+                    Log.e(TAG, "readFunction FAIL");
+                }
+            }
+        });
+        thread.start();
+    }
+
+    private void syncTime() {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (WristbandManager.getInstance(context).setTimeSync()) {
+                    Log.e(TAG, "syncTime SUCCESS");
+                    startMeasure();
+                } else {
+                    Log.e(TAG, "syncTime FAILED");
+                }
+            }
+        });
+        thread.start();
+    }
+
+    private void startMeasure() {
+        WristbandManager.getInstance(context).registerCallback(new WristbandManagerCallback() {
+            @Override
+            public void onHrpDataReceiveIndication(ApplicationLayerHrpPacket packet) {
+                super.onHrpDataReceiveIndication(packet);
+                for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
+                    Log.e(TAG, "hr value :" + item.getValue());
+                }
+            }
+
+            @Override
+            public void onDeviceCancelSingleHrpRead() {
+                super.onDeviceCancelSingleHrpRead();
+                Log.e(TAG, "stop measure hr ");
+            }
+        });
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
                 if (WristbandManager.getInstance(context).readHrpValue()) {
-                    Log.e(TAG, "Start HR succeed ");
-                    handler.sendEmptyMessage(0x01);
+                    Log.e(TAG, "startMeasure SUCCESS");
+                    startMeasureTemp();
                 } else {
-                    Log.e(TAG, "Start HR failed");
-                    handler.sendEmptyMessage(0x02);
+                    Log.e(TAG, "startMeasure FAIL");
                 }
-
-                // Start temperature
-//                if (WristbandManager.getInstance(context).setTemperatureStatus(true)) {
-//                    Log.e(TAG, "Start temp succeed ");
-//                    handler.sendEmptyMessage(0x01);
-//                } else {
-//                    Log.e(TAG, "Start temp failed");
-//                    handler.sendEmptyMessage(0x02);
-//                }
             }
         });
         thread.start();
     }
 
-    private void stopMeasurement() {
-        Log.e(TAG, "Stop measurement ");
+    private void stopMeasure() {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                // Stop heart rate
                 if (WristbandManager.getInstance(context).stopReadHrpValue()) {
-                    handler.sendEmptyMessage(0x01);
+                    Log.e(TAG, "stopMeasure SUCCESS");
                 } else {
-                    handler.sendEmptyMessage(0x02);
-                }
-                // Stop temperature
-                if (WristbandManager.getInstance(context).setTemperatureStatus(false)) {
-                    handler.sendEmptyMessage(0x01);
-                } else {
-                    handler.sendEmptyMessage(0x02);
+                    Log.e(TAG, "stopMeasure FAIL");
                 }
             }
         });
         thread.start();
     }
 
-    private class WbHandler extends Handler {
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            switch (msg.what) {
-                case 0x01:
-                    // Success
-                    break;
-                case 0x02:
-                    // Fail
-                    break;
+    private void startMeasureTemp() {
+        WristbandManager.getInstance(context).registerCallback(new WristbandManagerCallback() {
+            @Override
+            public void onTemperatureData(ApplicationLayerHrpPacket packet) {
+                super.onTemperatureData(packet);
+                for (ApplicationLayerHrpItemPacket item : packet.getHrpItems()) {
+                    Log.i(TAG, "temp origin value :" + item.getTempOriginValue() + " temperature adjust value : " + item.getTemperature() + " is wear :" + item.isWearStatus() + " is adjust : " + item.isAdjustStatus() + "is animation :" + item.isAnimationStatus());
+                }
             }
-        }
+
+            @Override
+            public void onTemperatureMeasureSetting(ApplicationLayerTemperatureControlPacket packet) {
+                super.onTemperatureMeasureSetting(packet);
+                Log.i(TAG, "temp setting : show = " + packet.isShow() + " adjust = " + packet.isAdjust() + " celsius unit = " + packet.isCelsiusUnit());
+            }
+
+            @Override
+            public void onTemperatureMeasureStatus(int status) {
+                super.onTemperatureMeasureStatus(status);
+                Log.i(TAG, "temp status :" + status);
+            }
+        });
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (WristbandManager.getInstance(context).setTemperatureStatus(true)) {
+                    Log.e(TAG, "startMeasureTemp SUCCESS");
+                } else {
+                    Log.e(TAG, "startMeasureTemp FAIL");
+                }
+            }
+        });
+        thread.start();
     }
 
-    public interface WbCallback {
-        void onHearRateUpdate(int hrValue);
-
-        void onTemperatureValue(float tempValue);
+    private void stopMeasureTemp() {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (WristbandManager.getInstance(context).setTemperatureStatus(false)) {
+                    Log.e(TAG, "stopMeasureTemp SUCCESS");
+                } else {
+                    Log.e(TAG, "stopMeasureTemp FAIL");
+                }
+            }
+        });
+        thread.start();
     }
 }
