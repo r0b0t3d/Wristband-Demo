@@ -69,6 +69,7 @@ public class WbManager {
             @Override
             public void onWristbandDeviceFind(BluetoothDevice device, int rssi, byte[] scanRecord) {
                 super.onWristbandDeviceFind(device, rssi, scanRecord);
+                WristbandManager.getInstance(context).stopScan();
                 connectDevice(device.getAddress(), device.getName());
             }
 
