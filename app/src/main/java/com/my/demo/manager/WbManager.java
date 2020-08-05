@@ -96,7 +96,7 @@ public class WbManager {
     }
 
     private void setup() {
-        Thread thread = new Thread(new Runnable() {
+        final Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
                 Log.e(TAG, "Read device information");
@@ -148,6 +148,11 @@ public class WbManager {
                     handler.sendEmptyMessage(0x02);
                 }
 
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 startMeasurement();
             }
         });
@@ -249,21 +254,24 @@ public class WbManager {
 
     private void startMeasurement() {
         Log.e(TAG, "Start measurement " + isConnected.get());
-        if (!isConnected.get()) return;
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
                 // Start heart rate
                 if (WristbandManager.getInstance(context).readHrpValue()) {
+                    Log.e(TAG, "Start HR succeed ");
                     handler.sendEmptyMessage(0x01);
                 } else {
+                    Log.e(TAG, "Start HR failed");
                     handler.sendEmptyMessage(0x02);
                 }
 
                 // Start temperature
                 if (WristbandManager.getInstance(context).setTemperatureStatus(true)) {
+                    Log.e(TAG, "Start temp succeed ");
                     handler.sendEmptyMessage(0x01);
                 } else {
+                    Log.e(TAG, "Start temp failed");
                     handler.sendEmptyMessage(0x02);
                 }
             }
@@ -272,7 +280,6 @@ public class WbManager {
     }
 
     private void stopMeasurement() {
-        if (!isConnected.get()) return;
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
