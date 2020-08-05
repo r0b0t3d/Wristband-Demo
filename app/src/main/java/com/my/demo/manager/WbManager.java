@@ -131,20 +131,23 @@ public class WbManager {
 //                } else {
 //                    handler.sendEmptyMessage(0x02);
 //                }
-//                    Thread.sleep(100L);
+
+
 //                    Log.e(TAG, "Set HR detect");
 //                    if (WristbandManager.getInstance(context).setContinueHrp(true, 1)) {
+//                        Log.e(TAG, "Set HR detect SUCCESS");
 //                        handler.sendEmptyMessage(0x01);
 //                    } else {
 //                        handler.sendEmptyMessage(0x02);
 //                    }
-//                    Thread.sleep(100L);
-//                    Log.e(TAG, "Read HR detect");
-//                    if (WristbandManager.getInstance(context).sendContinueHrpParamRequest()) {
-//                        handler.sendEmptyMessage(0x01);
-//                    } else {
-//                        handler.sendEmptyMessage(0x02);
-//                    }
+                    Thread.sleep(3000);
+                    Log.e(TAG, "Read HR detect");
+                    if (WristbandManager.getInstance(context).sendContinueHrpParamRequest()) {
+                        Log.e(TAG, "Read HR detect SUCCESS");
+                        handler.sendEmptyMessage(0x01);
+                    } else {
+                        handler.sendEmptyMessage(0x02);
+                    }
 //                    Thread.sleep(100L);
 //                    Log.e(TAG, "Check temperature status");
 //                    if (WristbandManager.getInstance(context).checkTemperatureStatus()) {
@@ -153,7 +156,7 @@ public class WbManager {
 //                        handler.sendEmptyMessage(0x02);
 //                    }
 
-                    Thread.sleep(3000);
+                    Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
